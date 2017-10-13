@@ -8,8 +8,6 @@ public object WorkflowPlusDSRoot
 
 	public		Object	Globals = WORKFLOWPLUSDS::WorkflowPlusDSGlobals
 
-
-
 	/**
 	 *  Content Server Startup Code
 	 */

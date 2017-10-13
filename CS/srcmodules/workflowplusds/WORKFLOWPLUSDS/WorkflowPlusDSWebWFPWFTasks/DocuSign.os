@@ -168,7 +168,7 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWFPWFTasks'#
 				//This page is displayed when the creator of a workflow map edits
 				//a custom display step in the Workflow Designer.
 		
-				retVal.Data.HeaderLabel = 'DocuSign Step Definition'
+				retVal.Data.HeaderLabel = [WORKFLOWPLUSDS_HeaderLabel.DocusignStepDefinition]
 		
 				tabPaneInfo.PaneList = { tmp }
 				
@@ -238,7 +238,7 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWFPWFTasks'#
 					taskInfo = Assoc.ToRecord(taskInfoAssoc)
 					
 					tmp = Assoc.CreateAssoc()
-					tmp.Label = [WORKFLOWPLUSDS_HTMLLABEL.Docusign]   // Tab name
+					tmp.Label = [WORKFLOWPLUSDS_TabHeader.Docusign]   // Tab name
 					tmp.URL = $WebWork.WFPkg.SetPaneIndexArg( $WebDSP.HTMLPkg.ArgsToURL( request ), i)
 					tmp.HelpKey = objName + "." + 'DocuSign' // do not XLATE
 					tmp.Active = FALSE
@@ -252,7 +252,7 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWFPWFTasks'#
 					a.TaskID = taskID
 					//Extra code added here to store other data
 					
-					a.title = [WORKFLOWPLUSDS_HTMLLABEL.Docusign]
+					a.title = [WORKFLOWPLUSDS_TABHEADER.Docusign]
 					
 					//Extra code ends here
 					
@@ -318,19 +318,314 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWFPWFTasks'#
 					Record		taskInfo, \
 					Record		r )
 				
-				Assoc		retVal
-				
-				
-				//
-				// This virtual function is responsible for saving the data as presented
-				// in the record r. The field names for r correspond to those choosen
-				// by the implementor of the html file whose name is returned by 
-				// GetMapData().
-				//
-				
-				retVal.OK = TRUE
-				
-				return retVal
+		Assoc 		paneData
+		Assoc 		retVal
+		Integer 	i
+		Object 		obj
+		Real 		time
+		Record 		p
+		Assoc 		document
+		Assoc 		status
+		Dynamic 	data
+		String 		temp
+		List 		docList
+		List		mapList
+		Assoc 		tempAssoc
+		Assoc 		holder
+		Boolean		handled = False
+		
+		retVal.OK = TRUE
+		
+		
+		if ( ( r.PaneIndex == 1 ) || ( r.PaneIndex == 0 ) )
+			//Save the step name.
+	
+			if ( RecArray.IsColumn( r, 'Title' ) )
+				taskInfo.Title = $LLIAPI.FormatPkg.ValToString( r.title )
+			end
+	
+			//Save the start date.
+	
+			if ( RecArray.IsColumn( r, 'StartDate' ) )
+				taskInfo.StartDate = ._CrackDate( r.StartDate )
+			end
+			
+			//
+			// Save the priority
+			//
+			if ( RecArray.IsColumn( r, 'Priority' ) )
+				taskInfo.Priority = Str.StringToInteger( r.Priority )
+			end
+			
+			//Save the instructions.
+	
+			if ( RecArray.IsColumn( r, 'Instructions' ) )
+				taskInfo.Instructions = \
+				$LLIAPI.FormatPkg.ValToString( r.Instructions )
+			end
+			
+			//
+			// Save the recalc due dates flag
+			//
+
+			if ( RecArray.IsColumn( r, 'Recalc' ) )
+				taskInfo.Flags |= WAPI.MAPTASK_FLAG_RECALCULATE
+			elseif ( ( taskInfo.Flags & WAPI.MAPTASK_FLAG_RECALCULATE ) == WAPI.MAPTASK_FLAG_RECALCULATE )
+				taskInfo.Flags ^= WAPI.MAPTASK_FLAG_RECALCULATE
+			end
+			
+			//Save the callback script that the creator of the workflow map
+			//selects from the Script to run field.
+
+			if ( IsFeature( r, 'CustTaskScript' ) && ( \
+			r.CustTaskScript != [WebWFP_HTMLLabel._None_] ) )
+				taskInfo.ExAtts.CustTaskScript = r.CustTaskScript
+	
+				//Save the information about when to execute the callback
+				//script (that is, the workflow event that triggers the
+				//callback script).
+	
+				taskInfo.ExAtts.RunScript = r.RunScript
+			else
+				taskInfo.ExAtts.CustTaskScript = Undefined
 			end
 
+			//Save the template that the creator of the workflow map
+			//selects from the Template to use field.
+	
+			if ( IsFeature( r, 'CustTaskTemplate' ) && ( \
+			r.CustTaskTemplate != [WebWFP_HTMLLabel._None_] ) )
+				taskInfo.CustomData.CustTaskTemplate = r.CustTaskTemplate
+			else
+				taskInfo.CustomData.CustTaskTemplate = Undefined
+			end
+
+			//Save the duration.
+	
+			if ( RecArray.IsColumn( r, 'Duration' ) )
+				if IsDefined( r.Duration ) && Length( r.Duration )
+					Boolean inDays = ( r.DurationUnits == "Days" )
+					
+					time = $LLIAPI.FormatPkg.StringToVal( r.Duration, \
+					RealType )
+	
+					if ( Type( time ) != RealType )
+						retVal.OK = FALSE
+	
+						if inDays
+							retVal.ErrMsg = \
+							[WebWork_ErrMsg.DurationMustBeANumberOfDays]
+						else
+							retVal.ErrMsg = \
+							[WebWork_ErrMsg.DurationMustBeANumberOfHours]
+						end
+					else
+						taskInfo.DueDuration = \
+						$LLIAPI.FormatPkg.ConvertToSeconds( inDays, time )
+					end
+				else
+					taskInfo.DueDuration = Undefined
+				end
+			end
+			
+			taskInfo.USERDATA.PERFORMERDATA.AssignToEngine = IsFeature( r, 'AssignToEngine' )
+			
+			if ( taskInfo.FLAGS & WAPI.SUBWORKTASK_FLAG_BACKGROUND )
+				taskInfo.FLAGS -= WAPI.SUBWORKTASK_FLAG_BACKGROUND
+			end
+			
+			if ( r.Performer_Name == '' )
+				r.Performer_ID = Undefined
+			end
+	
+			retVal = $WebWFP.WFPkg.GetPerformer( prgCtx, mapRec, taskInfo, r )
+			
+			//Save the group options.
+			if RecArray.IsColumn( r, "GroupFlags" )
+				taskInfo.EXATTS.GroupFlags = Str.StringToInteger( \
+				r.GROUPFLAGS )
+			end
+		else
+			//Determine whether the data types that are attached to the
+			//workflow need to display anything before setting up the data
+			//for a particular step. For example, the custom display step
+			//type needs to display a tab that allows the creator of a
+			//workflow map to specify whether certain workflow attributes
+			//are editable, required, or read-only.
+		
+			i = 2
+
+			for p in mapRec.WORK_PACKAGES
+				obj = $WebWFP.WFPackageSubsystem.GetItem( { p.TYPE, p.SUBTYPE } )
+				if ( IsDefined( obj ) && IsDefined( p.USERDATA ) )
+					paneData = obj.GetMapData( prgCtx, taskInfo, p.USERDATA )
+					if ( IsDefined( paneData ) )
+						if ( i == r.PaneIndex )
+							retVal = obj.PutMapData( prgCtx, taskInfo, p.USERDATA, r )
+							handled = TRUE
+							break
+						else
+							i += 1
+						end
+					end
+				end
+			end
+			
+			if ( !handled )
+				
+				if IsFeature( r, 'data' ) && r.data != ''
+					
+					data = Web.FromJSON( r.data );
+					
+					for holder in taskInfo.USERDATA.docusignData.documentList
+						holder.roles = {}
+					end
+					
+					if Type( data ) == Assoc.AssocType
+						
+						for temp in Assoc.Keys( data )
+							
+							docList = Str.Elements( temp, ':' )
+							
+							if Length( docList ) == 3
+								mapList = Str.Elements( data.( temp ), '|')
+								
+								status = $WorkflowPlusDS.Utils.GetElementFromList( taskInfo.USERDATA.docusignData.documentList, 'id', docList[ 1 ] )
+								
+								if status.ok && ! Assoc.IsKey( status.element, 'roles')
+									status.element.roles = {}
+								end
+								
+								if status.ok
+									holder = status.element
+									status = $WorkflowPlusDS.Utils.GetElementFromList( holder.roles, 'name', docList[ 2 ] )
+								
+									if !status.ok
+										tempAssoc = Assoc.CreateAssoc()
+										tempAssoc.name = docList[ 2 ]
+										tempAssoc.tabs = {}
+										holder.roles = List.SetAdd( holder.roles, tempAssoc )
+										status.element = tempAssoc
+										status.ok = TRUE
+									end
+								end
+								
+								if status.ok
+									holder = status.element
+									status = $WorkflowPlusDS.Utils.GetElementFromList( holder.tabs, 'name', docList[ 3 ] )
+								
+									if !status.ok
+										tempAssoc = Assoc.CreateAssoc()
+										tempAssoc.name = docList[ 3 ]
+										holder.tabs = List.SetAdd( holder.tabs, tempAssoc )
+										status.element = tempAssoc
+										status.ok = TRUE
+									end	
+								end
+								
+								if status.ok
+									holder = status.element
+									holder.mapping = data.( temp )
+								end
+							elseif Length( docList ) == 1
+								
+								status = $WorkflowPlusDS.Utils.GetElementFromList( taskInfo.USERDATA.docusignData.documentList, 'id', docList[ 1 ] )
+								
+								if status.ok
+									
+									holder = status.element
+									
+									if data.( temp ) != ''
+										
+										mapList = Str.Elements( data.( temp ), '|')
+										
+										tempAssoc = Assoc.CreateAssoc()
+										tempAssoc.docName = mapList[ 1 ]
+										tempAssoc.docPath = mapList[ 2 ]
+										tempAssoc.docID = mapList[ 3 ]
+										tempAssoc.docType = mapList[ 4 ]
+										tempAssoc.displayName = mapList[ 5 ]
+										
+										holder.source = tempAssoc
+									
+									else
+										holder.source = Undefined
+									end
+								end
+							
+							end
+						end
+					end
+					
+				elseif IsFeature( r, 'removeId' ) && r.removeId != ''
+					
+					status = $WorkflowPlusDS.Utils.GetElementFromList( taskInfo.USERDATA.docusignData.documentList, 'id', r.removeId )
+						
+					if status.ok
+						taskInfo.USERDATA.docusignData.documentList = List.SetRemove( taskInfo.USERDATA.docusignData.documentList, status.element )
+					end
+					
+				elseif IsFeature( r, 'templateId') && IsFeature( r, 'documentId') && r.documentId != ''
+					
+					document.id = r.documentId
+					document.name = r.Name
+					
+					status = $WorkflowPlusDS.Utils.GetElementFromList( taskInfo.USERDATA.docusignData.documentList, 'id', r.documentId )
+					
+					if ! status.ok
+						taskInfo.USERDATA.docusignData.documentList = List.SetAdd( taskInfo.USERDATA.docusignData.documentList, document )
+					end
+					
+					status = $WorkflowPlusDS.Utils.GetElementFromList( taskInfo.USERDATA.templates, 'id', r.templateId )
+						
+					if status.ok
+						holder = status.element
+						holder.documents.( r.documentId ) = Assoc.Copy( document )
+						
+						status = $WorkflowPlusDS.Utils.GetDocuSignRoles(prgCtx, taskInfo.USERDATA.docusignData.templateId, r.documentId  )
+							
+						if status.ok
+							holder.documents.( r.documentId ).roles = status.roles
+						end
+						
+					end
+					
+				elseif IsFeature( r, 'templateId')
+				
+					taskInfo.USERDATA.docusignData.templateId  = r.templateId
+					taskInfo.USERDATA.docusignData.envelopeId  = ''
+					taskInfo.USERDATA.docusignData.status  = ''
+					taskInfo.USERDATA.docusignData.documentList  = {}
+				
+				end
+				
+				if IsFeature( r, 'Envelope ID' ) && IsDefined( r.'Envelope ID' ) && r.'Envelope ID' != ''
+					
+					taskInfo.USERDATA.docusignData.envelopeId = r.'Envelope ID'
+					
+				end
+				
+				if IsFeature( r, 'DocuSign Status' ) && IsDefined( r.'DocuSign Status' ) && r.'DocuSign Status' != ''
+					
+					taskInfo.USERDATA.docusignData.status = r.'DocuSign Status'
+					
+				end
+				
+			end
+		end
+		
+		if (!handled) 
+			//Save any callback data.
+			$WEBWFP.WFContentManager.StoreCallbackData( taskInfo, r )
+		end
+		
+		if ( !$LLIApi.FactoryUtil.IsCreatable( prgCtx, { 1, 1 }, $FactoryTypeWFFeatures ) )
+			taskInfo.USERDATA.PERFORMERDATA.AssignToEngine = False
+			
+			if ( taskInfo.FLAGS & WAPI.SUBWORKTASK_FLAG_BACKGROUND )
+				taskInfo.FLAGS -= WAPI.SUBWORKTASK_FLAG_BACKGROUND 
+			end
+		end
+		return retVal
+	end
 end

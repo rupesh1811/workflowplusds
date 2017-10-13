@@ -92,30 +92,47 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WFMainStandardT
 					Object		prgCtx, \
 					Record		taskRec, \
 					Dynamic		context = Undefined )
+		
+		Assoc template
+		Assoc status
+		List templates
+		String temp
 					
-					taskRec.TYPE = .fType
-					taskRec.SUBTYPE = .fSubType
-					taskRec.EXATTS = Assoc.CreateAssoc()
-					taskRec.CUSTOMDATA = Assoc.CreateAssoc()
-					taskRec.USERDATA = Assoc.CreateAssoc()
-					taskRec.USERDATA.docusignData = Assoc.CreateAssoc()
-					taskRec.USERDATA.docusignData.documentList = {}
-					taskRec.USERDATA.docusignData.templateId = ''
+		taskRec.TYPE = .fType
+		taskRec.SUBTYPE = .fSubType
+		taskRec.EXATTS = Assoc.CreateAssoc()
+		taskRec.CUSTOMDATA = Assoc.CreateAssoc()
+		taskRec.USERDATA = Assoc.CreateAssoc()
+		taskRec.USERDATA.docusignData = Assoc.CreateAssoc()
+		taskRec.USERDATA.docusignData.documentList = {}
+		taskRec.USERDATA.docusignData.templateId = ''
+		
+		if ( IsUndefined( context ) )
+			taskRec.TITLE = Str.String( .fTaskName )
+			taskRec.PERFORMERID = Undefined
+		else
+			taskRec.TITLE = context.NAME
+			taskRec.PERFORMERID = context.ID
+		end
+		
+		status = $WorkflowPlusDS.Utils.GetDocuSignTemplates( prgCtx )
 					
-					if ( IsUndefined( context ) )
-						taskRec.TITLE = Str.String( .fTaskName )
-						taskRec.PERFORMERID = Undefined
-					else
-						taskRec.TITLE = context.NAME
-						taskRec.PERFORMERID = context.ID
-					end
-					
-					taskRec.USERDATA.PerformerData = Assoc.CreateAssoc()
-					taskRec.FLAGS = 0
-					taskRec.EXATTS.GroupFlags = $WFMain.WFConst.kWFGroupStandard
-					taskRec.EXATTS.RunScript = 'ReadyCB'
-					
-				end
+		if status.ok
+			for temp in status.templates
+				template = Assoc.CreateAssoc()
+				template.id = temp[ : Str.Locate(temp, '^') - 1]
+				template.name = temp[ Str.Locate(temp, '^') + 1 : ]
+				template.documents = Assoc.CreateAssoc()
+				templates = List.SetAdd( templates, template )
+			end
+		end
+		taskRec.USERDATA.templates = templates
+		taskRec.USERDATA.PerformerData = Assoc.CreateAssoc()
+		taskRec.FLAGS = 0
+		taskRec.EXATTS.GroupFlags = $WFMain.WFConst.kWFGroupStandard
+		taskRec.EXATTS.RunScript = 'ReadyCB'
+		
+	end
 
 	
 	override function Void SetTaskRecFromMapTask( \
