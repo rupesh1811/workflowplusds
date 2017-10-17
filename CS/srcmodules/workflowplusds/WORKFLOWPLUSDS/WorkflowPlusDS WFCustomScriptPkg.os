@@ -143,7 +143,7 @@ public object #'WorkflowPlusDS WFCustomScriptPkg'# inherits WFMAIN::WFCustomScri
 							docName = value[ : Str.Locate( value, '|') - 1 ]
 							filePath = value[ Str.Locate( value, '|') + 1 : ]
 							
-							status = $WorkflowPlusDS.Utils.GetElementFromList( docusignData.documentList, 'name', docName )
+							status = $WorkflowPlusDS.Utils.GetElementFromList( docusignData.documentList, 'id', docName )
 							
 							if status.ok
 								status = ._GetNodeFromSource( prgCtx, status.element.source, work )
@@ -174,7 +174,7 @@ public object #'WorkflowPlusDS WFCustomScriptPkg'# inherits WFMAIN::WFCustomScri
 			end
 		else
 			
-			fprefs = Fileprefs.Open( $Kernel.ModuleUtils.ModuleIniPath( "docgen" ) )
+			fprefs = Fileprefs.Open( $Kernel.ModuleUtils.ModuleIniPath( "workflowplusds" ) )
 			attrs = Fileprefs.GetPref( fprefs, 'DocusignTabs', 'Tabs' )
 			Fileprefs.Close( fprefs )
 			

@@ -293,11 +293,19 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWorkWFTask'#
 					Record		taskInfo, \
 					Record		r )		// The args request record
 				
-					Assoc		retVal = Undefined
-				
-				
-					return( retVal )
-				end
+		Assoc		retVal
+		
+		retVal.OK = True
+		retVal.RHandler = Str.Format(
+							 '%1?func=work.EditTaskHeader&workid=%2&subworkid=%3&taskid=%4&nexturl=%5',
+							 r.SCRIPT_NAME,
+							 r.WorkID,
+							 r.SubWorkID,
+							 r.TaskID,
+							 Web.Escape( r.NextURL ) )
+
+		return( retVal )
+	end
 
 	
 	override function Assoc GetTaskEditFrameData( \

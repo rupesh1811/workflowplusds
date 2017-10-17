@@ -43,7 +43,7 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WFMainStandardT
 					
 					userData.PERMFLAGS = r.USERFLAGS
 				
-					r.USERDATA = userData
+					userData = r.USERDATA
 				
 					r.TITLE = wapiPkg.ReplaceVariable( prgCtx, r.TITLE, workData )
 					r.INSTRUCTIONS = wapiPkg.ReplaceVariable( prgCtx, r.INSTRUCTIONS, workData )
@@ -80,7 +80,7 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WFMainStandardT
 		
 					info = { @info, { $WFMain.WFConst.kCBDMTPerformOperations, Undefined } }
 					info = { @info, { $WFMain.WFConst.kCBSetTaskDoneData, Undefined } }
-					info = { { 558, 'workflowflusds' } }
+					info = { { 558, 'workflowplusds' } }
 					
 					r.DoneCB = info
 					

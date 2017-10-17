@@ -203,6 +203,30 @@ public object Utils inherits WORKFLOWPLUSDS::WorkflowPlusDSRoot
 		return retVal
 	end
 	
+	function Dynamic CreateDocument(DAPINODE parent, String filePath, String fileName)
+        
+        Assoc opts
+        Object llNode
+        Dynamic status
+        DAPINODE node
+        opts = Assoc.CreateAssoc()
+        opts.comment = ''
+        opts.filename = fileName
+        opts.fileType = filePath[Length(filePath)-2:]
+        opts.mimeType = $WebDsp.MIMETypePkg.GetFileExtMIMEType(opts.fileType)
+        opts.platform = DAPI.PLATFORM_WINDOWS
+        opts.versionFile =filePath
+        opts.inheritNode = parent
+        llNode = $LLIAPI.LLNodeSubsystem.GetItem( 144 )
+        status = llnode.NodeAlloc(parent,fileName)    
+        if(status.ok)
+            node = status.node
+            status = llnode.NodeCreate(node,parent,opts)           
+        end    
+                
+        return status
+    end
+    
 	function Assoc OutputData( Object prgCtx, \
 									Dynamic ctxOut, \
 									Dynamic data, \
