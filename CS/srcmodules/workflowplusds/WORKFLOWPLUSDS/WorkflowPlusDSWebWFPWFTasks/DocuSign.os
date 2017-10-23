@@ -600,17 +600,31 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWFPWFTasks'#
 				end
 				
 				if IsFeature( r, 'Envelope ID' ) && IsDefined( r.'Envelope ID' ) && r.'Envelope ID' != ''
-					
 					taskInfo.USERDATA.docusignData.envelopeId = r.'Envelope ID'
-					
 				end
 				
 				if IsFeature( r, 'DocuSign Status' ) && IsDefined( r.'DocuSign Status' ) && r.'DocuSign Status' != ''
-					
 					taskInfo.USERDATA.docusignData.status = r.'DocuSign Status'
-					
 				end
 				
+				if IsFeature( r, 'isUpdated' ) && IsDefined( r.'isUpdated' ) && r.'isUpdated' != ''
+					
+					status = $WorkflowPlusDS.Utils.GetDocuSignTemplates( prgCtx )
+					
+					if status.ok
+						for temp in status.templates
+							tempAssoc = Assoc.CreateAssoc()
+							tempAssoc.id = temp[ : Str.Locate(temp, '^') - 1]
+							tempAssoc.name = temp[ Str.Locate(temp, '^') + 1 : ]
+							tempAssoc.documents = Assoc.CreateAssoc()
+							docList = List.SetAdd( docList, tempAssoc )
+						end
+						
+						taskInfo.USERDATA.templates = docList
+					end
+					
+					
+				end
 			end
 		end
 		
