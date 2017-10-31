@@ -2,13 +2,11 @@ package WORKFLOWPLUSDS::WorkflowPlusDSWebWFPWFTasks
 
 public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWFPWFTasks'#
 
-	override	String	fSmallGif = '16user.gif'
+	override	String	fSmallGif = '16docusign.png'
 	override	Integer	fSubType = 1
-	override	String	fTaskGif = '16user.gif'
+	override	String	fTaskGif = '16docusign.png'
 	override	Integer	fType = 558
 
-
-	
 	public function Assoc GetFormData( Object prgCtx, Record mapRec )
 				
 				Assoc		formData
@@ -488,7 +486,6 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWFPWFTasks'#
 							docList = Str.Elements( temp, ':' )
 							
 							if Length( docList ) == 3
-								mapList = Str.Elements( data.( temp ), '|')
 								
 								status = $WorkflowPlusDS.Utils.GetElementFromList( taskInfo.USERDATA.docusignData.documentList, 'id', docList[ 1 ] )
 								
@@ -523,7 +520,7 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWFPWFTasks'#
 									end	
 								end
 								
-								if status.ok
+								if status.ok && data.( temp ) != ''
 									holder = status.element
 									holder.mapping = data.( temp )
 								end
@@ -599,11 +596,11 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWFPWFTasks'#
 				
 				end
 				
-				if IsFeature( r, 'Envelope ID' ) && IsDefined( r.'Envelope ID' ) && r.'Envelope ID' != ''
+				if IsFeature( r, 'Envelope ID' ) && IsDefined( r.'Envelope ID' )
 					taskInfo.USERDATA.docusignData.envelopeId = r.'Envelope ID'
 				end
 				
-				if IsFeature( r, 'DocuSign Status' ) && IsDefined( r.'DocuSign Status' ) && r.'DocuSign Status' != ''
+				if IsFeature( r, 'DocuSign Status' ) && IsDefined( r.'DocuSign Status' )
 					taskInfo.USERDATA.docusignData.status = r.'DocuSign Status'
 				end
 				
@@ -622,8 +619,6 @@ public object DocuSign inherits WORKFLOWPLUSDS::#'WorkflowPlusDS WebWFPWFTasks'#
 						
 						taskInfo.USERDATA.templates = docList
 					end
-					
-					
 				end
 			end
 		end
